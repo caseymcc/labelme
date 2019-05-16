@@ -78,8 +78,10 @@ def get_config(config_from_args=None, config_file=None):
 
     return config
 
+
 def get_default_directory_config(config):
     return config['default_directory_config']
+
 
 def get_directory_config(config, config_file=None):
     # Configuration load order:
@@ -95,7 +97,8 @@ def get_directory_config(config, config_file=None):
         if osp.exists(config_file):
             with open(config_file) as f:
                 user_config = yaml.load(f) or {}
-            update_dict(directory_config, user_config, validate_item=validate_config_item)
+            update_dict(directory_config, user_config, 
+                validate_item=validate_config_item)
         else:
             with open(config_file, 'w') as f:
                 yaml.safe_dump(config, f, default_flow_style=False)

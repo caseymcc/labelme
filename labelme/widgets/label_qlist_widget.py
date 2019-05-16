@@ -1,3 +1,4 @@
+from qtpy.QtCore import Qt
 from qtpy import QtWidgets
 
 
@@ -43,3 +44,13 @@ class LabelQListWidget(QtWidgets.QListWidget):
             shape = self.get_shape_from_item(item)
             shapes.append(shape)
         return shapes
+
+    def setLabelFile(self, labelFile):
+        self.labelFile=labelFile
+
+        for annotation in self.labelFile.annotations:
+            item = QtWidgets.QListWidgetItem(annotation['name'])
+
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
+            self.addItem(item)

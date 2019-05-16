@@ -1124,37 +1124,42 @@ class MainWindow(QtWidgets.QMainWindow):
             self.errorMessage(
                 'Error opening file', 'No such file: <b>%s</b>' % filename)
             return False
+
         self.status("Loading %s..." % osp.basename(str(filename)))
-        label_file=self.getLabelFile(filename)
-        if QtCore.QFile.exists(label_file) and \
-                LabelFile.is_label_file(label_file):
-            try:
-                self.labelFile = LabelFile(label_file)
-            except LabelFileError as e:
-                self.errorMessage(
-                    'Error opening file',
-                    "<p><b>%s</b></p>"
-                    "<p>Make sure <i>%s</i> is a valid label file."
-                    % (e, label_file))
-                self.status("Error reading %s" % label_file)
-                return False
-            self.imageData = self.labelFile.imageData
-            self.imagePath = osp.join(
-                osp.dirname(label_file),
-                self.labelFile.imagePath,
-            )
-            if self.labelFile.lineColor is not None:
-                self.lineColor = QtGui.QColor(*self.labelFile.lineColor)
-            if self.labelFile.fillColor is not None:
-                self.fillColor = QtGui.QColor(*self.labelFile.fillColor)
-            self.otherData = self.labelFile.otherData
-        else:
+        if LabelFile.is_label_file(filename):
             self.imageData = LabelFile.load_image_file(filename)
             if self.imageData:
                 self.imagePath = filename
             self.labelFile = None
+        else:
+            label_file=self.getLabelFile(filename)
+            if QtCore.QFile.exists(label_file):
+                try:
+                    self.labelFile = LabelFile(label_file)
+                except LabelFileError as e:
+                    self.errorMessage(
+                        'Error opening file',
+                        "<p><b>%s</b></p>"
+                        "<p>Make sure <i>%s</i> is a valid label file."
+                        % (e, label_file))
+                    self.status("Error reading %s" % label_file)
+                    return False
+                self.imageData = self.labelFile.imageData
+                self.imagePath = osp.join(
+                    osp.dirname(label_file),
+                    self.labelFile.imagePath
+                )
+                if self.labelFile.lineColor is not None:
+                    self.lineColor = QtGui.QColor(*self.labelFile.lineColor)
+                if self.labelFile.fillColor is not None:
+                    self.fillColor = QtGui.QColor(*self.labelFile.fillColor)
+                self.otherData = self.labelFile.otherData
+            else:
+                self.labelFile = LabelFile()
+                self.labelFile.imagePath=osp.relpath(filename, label_file)
+                self.imageData = LabelFile.load_image_file(self.labelFile.imagePath)
+        
         image = QtGui.QImage.fromData(self.imageData)
-
         if image.isNull():
             formats = ['*.{}'.format(fmt.data().decode())
                        for fmt in QtGui.QImageReader.supportedImageFormats()]
@@ -1170,12 +1175,14 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._config['keep_prev']:
             prev_shapes = self.canvas.shapes
         self.canvas.loadPixmap(QtGui.QPixmap.fromImage(image))
-        if self._config['flags']:
-            self.loadFlags({k: False for k in self._config['flags']})
-        if self.labelFile:
-            self.loadLabels(self.labelFile.shapes)
-            if self.labelFile.flags is not None:
-                self.loadFlags(self.labelFile.flags)
+#        if self._config['flags']:
+#            self.loadFlags({k: False for k in self._config['flags']})
+#        if self.labelFile:
+#            self.loadLabels(self.labelFile.shapes)
+#        if self.labelFile.flags is not None:
+#            self.loadFlags(self.labelFile.flags)
+        self.labelList.setLabelFile(self.labelFile)
+
         if self._config['keep_prev'] and not self.labelList.shapes:
             self.loadShapes(prev_shapes, replace=False)
         self.setClean()
@@ -1411,7 +1418,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if filename.lower().endswith('.json'):
             label_file = filename
         else:
-            if self._config['directory_config']:
+            if self._config['directory_config'] and hasattr(self, 'directoryConfig'):
                 if self.directoryConfig['image_directory']:
                     imagepath=osp.join(self.lastOpenDir, self.directoryConfig['image_directory'])
 

@@ -10,7 +10,82 @@ from labelme.logger import logger
 from labelme import PY2
 from labelme import QT4
 from labelme import utils
+from labelme.shape import Shape
 
+from qtpy import QtCore
+from qtpy import QtGui
+
+#annotations=
+#[
+#    {
+#        "name": "",
+#        "type": "", #label, guide, and user configurable types, used to set default attrubutes
+#        "shapes": #optional
+#        [
+#            {
+#                "type": "", #polygon, circle, ...
+#                "line_color": [], #optional
+#                "fill_color": [], #optional
+#                "points": []
+#            },...
+#        ],
+#        "attributes"
+#        {
+#            "value": "",
+#            etc...
+#        },
+#        "children": [] #allow labels to be nested
+#    }
+#]
+
+#annotation_types=
+# sting
+# float
+#
+#annotation_types
+#{
+#    "car_label":
+#    {
+#        "make":
+#        {
+#            "type": "enum_string",
+#            "enum": ["Chevy", "Ford", etc...]
+#            "default": 0
+#        },
+#        "model":
+#        {
+#            "type": "string",
+#            "default": ""
+#        },
+#        "color"
+#        {
+#            "type": "color"
+#            "default": [255, 255, 255, 255]
+#        }
+#    },
+#    "person_label":
+#    {
+#        "mood"
+#        {
+#            "type": "enum_string",
+#            "enum": ["happy", "sad", etc...],
+#            "default": 0
+#        },
+#        "action":
+#        {
+#            "type": "enum_string",
+#            "enum": ["standing", "walking", "eating", etc...],
+#            "allow_multiple": true,
+#            "default": 0
+#        },
+#        "visibility":
+#        {
+#            "type": "enum_string",
+#            "enum": ["clear", "occuluded", etc...]
+#            "default": 0
+#        }
+#    }
+#}
 
 class LabelFileError(Exception):
     pass
@@ -21,9 +96,10 @@ class LabelFile(object):
     suffix = '.json'
 
     def __init__(self, filename=None):
-        self.shapes = ()
+#        self.shapes = ()
         self.imagePath = None
         self.imageData = None
+        self.annotations = []
         if filename is not None:
             self.load(filename)
         self.filename = filename
@@ -51,13 +127,41 @@ class LabelFile(object):
             f.seek(0)
             return f.read()
 
+    def __convert_format(self, shapes):
+        annotations=[]
+
+        for s in shapes:
+            annotation={}
+            
+            annotation['name'] = s['label']
+            annotation['type'] = 'label'
+            annotation['shapes'] = []
+            annotation['attributes'] = []
+            annotation['children'] = []
+
+            shape=Shape(annotation=annotation, shape_type=s.get('shape_type', 'polygon'))
+
+            for x, y in s['points']:
+                shape.addPoint(QtCore.QPoint(x, y))
+            shape.close()
+            if 'line_color' in s and s['line_color'] is not None:
+                shape.line_color = QtGui.QColor(s['line_color'])
+            if 'fill_color' in s and s['fill_color'] is not None:
+                shape.fill_color = QtGui.QColor(s['fill_color'])
+
+            annotation['shapes'].append(shape)
+            annotations.append(annotation)
+        return annotations
+
     def load(self, filename):
         keys = [
             'imageData',
             'imagePath',
             'lineColor',
             'fillColor',
-            'shapes',  # polygonal annotations
+#            'shapes',  # polygonal annotations
+            'annotations',
+            'labels',
             'flags',   # image level flags
             'imageHeight',
             'imageWidth',
@@ -82,16 +186,12 @@ class LabelFile(object):
             )
             lineColor = data['lineColor']
             fillColor = data['fillColor']
-            shapes = (
-                (
-                    s['label'],
-                    s['points'],
-                    s['line_color'],
-                    s['fill_color'],
-                    s.get('shape_type', 'polygon'),
-                )
-                for s in data['shapes']
-            )
+
+            if 'shapes' in data:
+                annotations = self.__convert_format(data['shapes'])
+            else:
+                annotations = data['annotations']
+
         except Exception as e:
             raise LabelFileError(e)
 
@@ -102,7 +202,8 @@ class LabelFile(object):
 
         # Only replace data after everything is loaded.
         self.flags = flags
-        self.shapes = shapes
+        self.annotations = annotations
+#        self.labels = labels
         self.imagePath = imagePath
         self.imageData = imageData
         self.lineColor = lineColor

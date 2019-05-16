@@ -36,8 +36,8 @@ class Shape(object):
     point_size = 8
     scale = 1.0
 
-    def __init__(self, label=None, line_color=None, shape_type=None):
-        self.label = label
+    def __init__(self, annotation=None, line_color=None, shape_type=None):
+        self.annotation = annotation
         self.points = []
         self.fill = False
         self.selected = False
